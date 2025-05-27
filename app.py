@@ -1,6 +1,7 @@
 ﻿import streamlit as st
 import random
 import math
+import os
 
 def calc_display_stats(hp, atk, df, spd):
     display_hp = math.floor(hp * 4 + atk + df + spd)
@@ -122,10 +123,23 @@ pet = st.session_state.pet
 if pet.is_perfect_s_or_above():
     st.markdown("<div style='color:#FF3333; text-align:center; font-weight:bold;'>*정석이 출현했습니다!!!*</div>", unsafe_allow_html=True)
 
-# ----------- [이미지 + 능력치] 한 줄(행)에 배치 ----------
+# 성장률에 따라 이미지 선택
+img_name = "pet.png"
+growth = pet.get_growth()
+if growth:
+    _, _, _, _, total_g = growth
+    if pet.level >= 2:
+        if total_g >= 5.05:
+            if os.path.exists("petgood.png"):
+                img_name = "petgood.png"
+        elif total_g < 4.9:
+            if os.path.exists("petbad.png"):
+                img_name = "petbad.png"
+
+# [이미지 + 능력치] 한 줄(행)에 배치
 col_img, col_stat = st.columns([1,2])
 with col_img:
-    st.image("pet.png", width=100)
+    st.image(img_name, width=100)
 with col_stat:
     cur_hp, cur_atk, cur_df, cur_spd = pet.get_stats()
     s_hp, s_atk, s_df, s_spd = pet.s_grade_stat_at_level(pet.level)
@@ -150,7 +164,7 @@ with col_stat:
     )
     st.markdown(stat_table, unsafe_allow_html=True)
 
-# ------------------ 버튼 한 줄 ------------------
+# 버튼
 b1, b2, b3 = st.columns(3)
 with b1:
     if st.button("레벨업"):
@@ -165,8 +179,7 @@ with b3:
         st.session_state.pet = Pet()
         st.rerun()
 
-# ------------------ 성장률 표 -------------------
-growth = pet.get_growth()
+# 성장률 표
 if growth:
     atk_g, df_g, spd_g, hp_g, total_g = growth
     def srate_color(val, s):
