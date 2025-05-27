@@ -113,8 +113,8 @@ class Pet:
     def get_base_growths(self):
         return self.hp_growth, self.atk_growth, self.df_growth, self.spd_growth
 
-st.set_page_config(page_title="코로몬키우기", layout="centered")
-st.markdown("<h2 style='text-align:center; margin-bottom:6px;'>코로몬키우기</h2>", unsafe_allow_html=True)
+st.set_page_config(page_title="똥코로몬키우기", layout="centered")
+st.markdown("<h2 style='text-align:center; margin-bottom:6px;'>똥코로몬키우기</h2>", unsafe_allow_html=True)
 
 if "pet" not in st.session_state:
     st.session_state.pet = Pet()
@@ -153,16 +153,19 @@ with col_stat:
     def stat_line(label, cur, s):
         diff = cur - s
         return f"<tr><td>{label}</td><td><b>{cur}</b></td><td><span style='color:{stat_color(diff)}'>({diff:+})</span></td></tr>"
-    stat_table = (
-        "<table style='width:100%; font-size:17px;'>"
-        "<tr><th>능력</th><th>현재</th><th>S급대비</th></tr>"
-        f"{stat_line('공격력', cur_atk, s_atk)}"
-        f"{stat_line('방어력', cur_df, s_df)}"
-        f"{stat_line('순발력', cur_spd, s_spd)}"
-        f"{stat_line('체력', cur_hp, s_hp)}"
-        "</table>"
-    )
-    st.markdown(stat_table, unsafe_allow_html=True)
+# 기존 stat_table 부분을 아래로 교체
+
+stat_table = (
+    f"<table style='width:100%; font-size:17px;'>"
+    f"<tr><th>능력</th><th>현재(Lv{pet.level})</th><th>S급대비</th></tr>"
+    f"{stat_line('공격력', cur_atk, s_atk)}"
+    f"{stat_line('방어력', cur_df, s_df)}"
+    f"{stat_line('순발력', cur_spd, s_spd)}"
+    f"{stat_line('체력', cur_hp, s_hp)}"
+    f"</table>"
+)
+st.markdown(stat_table, unsafe_allow_html=True)
+
 
 # 버튼
 b1, b2, b3 = st.columns(3)
