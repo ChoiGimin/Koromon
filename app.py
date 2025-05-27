@@ -114,7 +114,7 @@ class Pet:
     def get_base_growths(self):
         return self.hp_growth, self.atk_growth, self.df_growth, self.spd_growth
 
-st.set_page_config(page_title="코로몽 키우기", layout="wide")
+st.set_page_config(page_title="족장몬 키우기", layout="wide")
 
 if "pet" not in st.session_state:
     st.session_state.pet = Pet()
@@ -136,7 +136,7 @@ with left:
         st.write("pet.png 파일이 프로젝트 폴더에 필요합니다.")
 
 with right:
-    st.markdown(f"### Lv.{pet.level} 코로몬")
+    st.markdown(f"### Lv.{pet.level} 족장몬")
     cur_hp, cur_atk, cur_df, cur_spd = pet.get_stats()
     s_hp, s_atk, s_df, s_spd = pet.s_grade_stat_at_level(pet.level)
 
