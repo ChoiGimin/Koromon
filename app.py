@@ -160,7 +160,7 @@ with right:
     if pet.level > 1:
         l_hp, l_atk, l_df, l_spd = pet.last_display_stats
         st.markdown(
-            f"<b>직전 레벨업 변화량:</b> "
+            f"<b>전업 증가량:</b> "
             f"<span style='color:{stat_color(l_atk)}'>공격력 {l_atk:+}</span>  "
             f"<span style='color:{stat_color(l_df)}'>방어력 {l_df:+}</span>  "
             f"<span style='color:{stat_color(l_spd)}'>순발력 {l_spd:+}</span>  "
