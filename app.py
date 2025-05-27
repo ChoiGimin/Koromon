@@ -203,12 +203,12 @@ with right:
     else:
         st.markdown("성장률: - (2레벨 이상부터 표시)")
 
-    if pet.level == MAX_LEVEL:
-        h, a, d, s = pet.get_base_growths()
-        st.markdown(
-            f"<b>초기 성장계수</b> (체력: {h}, 공격력: {a}, 방어력: {d}, 순발력: {s})", 
-            unsafe_allow_html=True
-        )
+#    if pet.level == MAX_LEVEL:
+#        h, a, d, s = pet.get_base_growths()
+#        st.markdown(
+#            f"<b>초기 성장계수</b> (체력: {h}, 공격력: {a}, 방어력: {d}, 순발력: {s})", 
+#           unsafe_allow_html=True
+#        )
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
