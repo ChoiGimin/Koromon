@@ -112,7 +112,6 @@ class Pet:
     def get_base_growths(self):
         return self.hp_growth, self.atk_growth, self.df_growth, self.spd_growth
 
-# ---- Streamlit UI ----
 st.set_page_config(page_title="코로몬키우기", layout="centered")
 st.markdown("<h2 style='text-align:center; margin-bottom:6px;'>코로몬키우기</h2>", unsafe_allow_html=True)
 
@@ -120,16 +119,13 @@ if "pet" not in st.session_state:
     st.session_state.pet = Pet()
 pet = st.session_state.pet
 
-# 상단 알림
 if pet.is_perfect_s_or_above():
     st.markdown("<div style='color:#FF3333; text-align:center; font-weight:bold;'>*정석이 출현했습니다!!!*</div>", unsafe_allow_html=True)
 
-# 모바일 최적화 1열
-col1, = st.columns([1])
-with col1:
-    st.image("pet.png", width=120)
+# 코로몬 이미지
+st.image("pet.png", width=120)
 
-# 능력치 테이블로 한 번에!
+# 능력치 테이블
 cur_hp, cur_atk, cur_df, cur_spd = pet.get_stats()
 s_hp, s_atk, s_df, s_spd = pet.s_grade_stat_at_level(pet.level)
 
@@ -155,19 +151,6 @@ stat_table = (
 )
 st.markdown(stat_table, unsafe_allow_html=True)
 
-if pet.level > 1:
-    l_hp, l_atk, l_df, l_spd = pet.last_display_stats
-    st.markdown(
-        f"<div style='font-size:15px; text-align:center;'>"
-        f"<b>직전 레벨업 변화량:</b> "
-        f"<span style='color:{stat_color(l_atk)}'>공격력 {l_atk:+}</span>  "
-        f"<span style='color:{stat_color(l_df)}'>방어력 {l_df:+}</span>  "
-        f"<span style='color:{stat_color(l_spd)}'>순발력 {l_spd:+}</span>  "
-        f"<span style='color:{stat_color(l_hp)}'>체력 {l_hp:+}</span>"
-        f"</div>",
-        unsafe_allow_html=True
-    )
-
 growth = pet.get_growth()
 if growth:
     atk_g, df_g, spd_g, hp_g, total_g = growth
@@ -178,7 +161,6 @@ if growth:
             return "orange"
         else:
             return "red"
-    # 표로 요약!
     growth_table = (
         "<table style='width:100%; font-size:15px;'>"
         "<tr><th>능력</th><th>성장률</th><th>S급</th></tr>"
@@ -200,18 +182,31 @@ if pet.level == MAX_LEVEL:
         unsafe_allow_html=True
     )
 
-# 버튼을 2줄로 배치!
-c1, c2 = st.columns(2)
-with c1:
+# 버튼 가로 1줄 (3개)
+b1, b2, b3 = st.columns(3)
+with b1:
     if st.button("레벨업"):
         pet.levelup()
         st.rerun()
-    if st.button("새로뽑기"):
-        st.session_state.pet = Pet()
-        st.rerun()
-with c2:
+with b2:
     if st.button("10레벨업"):
         pet.levelup(up_count=10)
         st.rerun()
-    if st.button("종료"):
-        st.stop()
+with b3:
+    if st.button("새로뽑기"):
+        st.session_state.pet = Pet()
+        st.rerun()
+
+# 변화량 맨 아래
+if pet.level > 1:
+    l_hp, l_atk, l_df, l_spd = pet.last_display_stats
+    st.markdown(
+        f"<div style='font-size:15px; text-align:center; margin-top:12px;'>"
+        f"<b>직전 레벨업 변화량:</b> "
+        f"<span style='color:{stat_color(l_atk)}'>공격력 {l_atk:+}</span>  "
+        f"<span style='color:{stat_color(l_df)}'>방어력 {l_df:+}</span>  "
+        f"<span style='color:{stat_color(l_spd)}'>순발력 {l_spd:+}</span>  "
+        f"<span style='color:{stat_color(l_hp)}'>체력 {l_hp:+}</span>"
+        f"</div>",
+        unsafe_allow_html=True
+    )
