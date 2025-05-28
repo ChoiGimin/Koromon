@@ -1,5 +1,6 @@
 import streamlit as st
 import random
+import math
 
 PET_LIST = [
     (1, "놀놀", 25, 19, 29, 18, 29),
@@ -38,27 +39,39 @@ def pet_level_price(level):
     lv_block = (level - 1) // 20 + 1
     return min(lv_block, 7)
 
-def display_stats(hp, atk, df, spd):
-    # 표기 능력치, 모두 소수점 2자리
-    display_hp = hp * 4 + atk + df + spd
-    display_atk = hp * 0.1 + atk + df * 0.1 + spd * 0.05
-    display_df = hp * 0.1 + atk * 0.1 + df + spd * 0.05
-    display_spd = spd
-    return (display_hp, display_atk, display_df, display_spd)
+def floor_stat(hp, atk, df, spd):
+    return (
+        math.floor(hp * 4 + atk + df + spd),
+        math.floor(hp * 0.1 + atk + df * 0.1 + spd * 0.05),
+        math.floor(hp * 0.1 + atk * 0.1 + df + spd * 0.05),
+        math.floor(spd)
+    )
 
-def s_stats(petinfo, level=1, B=495):
+def calc_s_init_stats(petinfo):
     initc, h, a, d, s = petinfo[2:]
-    base = [h, a, d, s]
-    s_hp = initc * h / 100
-    s_atk = initc * a / 100
-    s_df = initc * d / 100
-    s_spd = initc * s / 100
-    cur = [s_hp, s_atk, s_df, s_spd]
-    for lv in range(2, level + 1):
-        for i in range(4):
-            growth = (base[i] + 2.5) * B / 10000
-            cur[i] += growth
-    return display_stats(*cur)
+    return (
+        math.floor(initc * h / 100),
+        math.floor(initc * a / 100),
+        math.floor(initc * d / 100),
+        math.floor(initc * s / 100)
+    )
+
+def calc_s_growth(petinfo):
+    _, h, a, d, s = petinfo[2:]
+    return [
+        (coef + 2.5) * S_GROWTH_B / 10000 for coef in [h, a, d, s]
+    ]
+
+def calc_s_stats(petinfo, level):
+    hp0, atk0, df0, spd0 = calc_s_init_stats(petinfo)
+    h_g, a_g, d_g, s_g = calc_s_growth(petinfo)
+    hp, atk, df, spd = hp0, atk0, df0, spd0
+    for _ in range(2, level+1):
+        hp += h_g
+        atk += a_g
+        df += d_g
+        spd += s_g
+    return floor_stat(hp, atk, df, spd)
 
 class Pet:
     def __init__(self, name):
@@ -92,16 +105,14 @@ class Pet:
         self.last_display_stats = [0, 0, 0, 0]
     def is_perfect_s_or_above(self):
         stats = self.get_stats()
-        s_stats_now = s_stats(PET_DIC[self.name], self.level)
-        stats_round = tuple(round(x, 2) for x in stats)
-        s_stats_now_round = tuple(round(x, 2) for x in s_stats_now)
-        return stats_round == s_stats_now_round and self.level == 1
+        s_stats_now = calc_s_stats(PET_DIC[self.name], self.level)
+        return stats == s_stats_now and self.level == 1
     def get_stats(self):
-        return display_stats(*self.current_stats)
+        return floor_stat(*self.current_stats)
     def s_grade_stat_at_level(self, lv):
-        return s_stats(PET_DIC[self.name], lv)
+        return calc_s_stats(PET_DIC[self.name], lv)
     def s_init_stats(self):
-        return s_stats(PET_DIC[self.name], 1)
+        return calc_s_init_stats(PET_DIC[self.name])
     def levelup(self, up_count=1):
         MAX_LEVEL = 140
         for _ in range(up_count):
@@ -169,27 +180,41 @@ with col_img:
 with col_stat:
     cur_hp, cur_atk, cur_df, cur_spd = pet.get_stats()
     s_hp, s_atk, s_df, s_spd = pet.s_grade_stat_at_level(pet.level)
-    s_init_hp, s_init_atk, s_init_df, s_init_spd = pet.s_init_stats()
     def stat_color(val):
-        if abs(val) < 1e-6:
+        if val == 0:
             return "cyan"
         elif val > 0:
             return "lime"
         else:
             return "red"
-    table_style = "width:100%; font-size:16px; table-layout:fixed; word-break:keep-all;"
     stat_table = (
         f"<div style='overflow-x:auto;'>"
-        f"<table style='{table_style}'>"
-        f"<tr style='font-size:14px;'><th>능력</th><th>현재(Lv{pet.level})</th><th>S급 초기치</th><th>S급(Lv{pet.level})</th><th>차이</th></tr>"
-        f"<tr><td>공격력</td><td>{cur_atk:.2f}</td><td>{s_init_atk:.2f}</td><td>{s_atk:.2f}</td><td><span style='color:{stat_color(cur_atk-s_atk)}'>{cur_atk-s_atk:+.2f}</span></td></tr>"
-        f"<tr><td>방어력</td><td>{cur_df:.2f}</td><td>{s_init_df:.2f}</td><td>{s_df:.2f}</td><td><span style='color:{stat_color(cur_df-s_df)}'>{cur_df-s_df:+.2f}</span></td></tr>"
-        f"<tr><td>순발력</td><td>{cur_spd:.2f}</td><td>{s_init_spd:.2f}</td><td>{s_spd:.2f}</td><td><span style='color:{stat_color(cur_spd-s_spd)}'>{cur_spd-s_spd:+.2f}</span></td></tr>"
-        f"<tr><td>체력</td><td>{cur_hp:.2f}</td><td>{s_init_hp:.2f}</td><td>{s_hp:.2f}</td><td><span style='color:{stat_color(cur_hp-s_hp)}'>{cur_hp-s_hp:+.2f}</span></td></tr>"
+        f"<table style='width:100%; font-size:17px; table-layout:fixed;'>"
+        f"<tr><th>능력</th><th>현재(Lv{pet.level})</th><th>S급(Lv{pet.level})</th></tr>"
+        f"<tr><td>공격력</td>"
+        f"<td>{cur_atk} <span style='color:{stat_color(cur_atk-s_atk)}'>({cur_atk-s_atk:+d})</span></td>"
+        f"<td>{s_atk}</td></tr>"
+        f"<tr><td>방어력</td>"
+        f"<td>{cur_df} <span style='color:{stat_color(cur_df-s_df)}'>({cur_df-s_df:+d})</span></td>"
+        f"<td>{s_df}</td></tr>"
+        f"<tr><td>순발력</td>"
+        f"<td>{cur_spd} <span style='color:{stat_color(cur_spd-s_spd)}'>({cur_spd-s_spd:+d})</span></td>"
+        f"<td>{s_spd}</td></tr>"
+        f"<tr><td>체력</td>"
+        f"<td>{cur_hp} <span style='color:{stat_color(cur_hp-s_hp)}'>({cur_hp-s_hp:+d})</span></td>"
+        f"<td>{s_hp}</td></tr>"
         f"</table>"
         f"</div>"
     )
     st.markdown(stat_table, unsafe_allow_html=True)
+    # S급 초기치(별도 표기)
+    s_init_hp, s_init_atk, s_init_df, s_init_spd = pet.s_init_stats()
+    st.markdown(
+        f"<div style='font-size:13px; color:#888;'>"
+        f"S급 초기치: 공격력 {s_init_atk} / 방어력 {s_init_df} / 순발력 {s_init_spd} / 체력 {s_init_hp}"
+        f"</div>",
+        unsafe_allow_html=True
+    )
 
 # ---- 버튼(가로 4개) ----
 growth = pet.get_growth()
@@ -260,10 +285,10 @@ if pet.level > 1:
     st.markdown(
         f"<div style='font-size:15px; text-align:center; margin-top:12px;'>"
         f"<b>직전 레벨업 변화량:</b> "
-        f"<span style='color:{stat_color(l_atk)}'>공격력 {l_atk:+.2f}</span>  "
-        f"<span style='color:{stat_color(l_df)}'>방어력 {l_df:+.2f}</span>  "
-        f"<span style='color:{stat_color(l_spd)}'>순발력 {l_spd:+.2f}</span>  "
-        f"<span style='color:{stat_color(l_hp)}'>체력 {l_hp:+.2f}</span>"
+        f"<span style='color:{stat_color(l_atk)}'>공격력 {l_atk:+d}</span>  "
+        f"<span style='color:{stat_color(l_df)}'>방어력 {l_df:+d}</span>  "
+        f"<span style='color:{stat_color(l_spd)}'>순발력 {l_spd:+d}</span>  "
+        f"<span style='color:{stat_color(l_hp)}'>체력 {l_hp:+d}</span>"
         f"</div>",
         unsafe_allow_html=True
     )
