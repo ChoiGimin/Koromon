@@ -18,9 +18,10 @@ PET_LIST = [
 PET_DIC = {pet[1]: pet for pet in PET_LIST}
 PET_NAME_LIST = [pet[1] for pet in PET_LIST]
 FIRST_PET = "벨가"
-S_GROWTH_B = 495 # 평균 보정계수
+S_GROWTH_B = 495  # 평균 보정계수
 
-PET_IMAGE_NUM = {pet[1]: str(pet[0]) + ".png" for pet in PET_LIST}
+# 이미지명 gif로 세팅
+PET_IMAGE_NUM = {pet[1]: f"{pet[0]}.gif" for pet in PET_LIST}
 PET_BONUS = {"놀놀": 2.5, "골롯": 5.0}
 
 S_GROWTH_TABLE = [
@@ -197,9 +198,6 @@ with col_stat:
             return "lime"
         else:
             return "red"
-    def stat_line(label, cur, s):
-        diff = cur - s
-        return f"<tr><td>{label}</td><td><b>{cur}</b></td><td><span style='color:{stat_color(diff)}'>({diff:+})</span></td></tr>"
     stat_table = (
         f"<table style='width:100%; font-size:17px;'>"
         f"<tr><th>능력</th><th>현재(Lv{pet.level})</th><th>S급 초기치</th><th>차이</th></tr>"
@@ -258,13 +256,6 @@ s_total_growth = math.floor(pet.s_total_growth)
 if growth:
     atk_g, df_g, spd_g, hp_g, total_g = growth
     s_atk_g, s_df_g, s_spd_g, s_hp_g = [math.floor(x) for x in s_growth]
-    def srate_color(val, s):
-        if val > s + 0.05:
-            return "lime"
-        elif abs(val - s) <= 0.05:
-            return "orange"
-        else:
-            return "red"
     growth_table = (
         "<table style='width:100%; font-size:15px;'>"
         "<tr><th>능력</th><th>내 성장률</th><th>S급 성장률</th></tr>"
