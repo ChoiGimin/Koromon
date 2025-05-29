@@ -40,7 +40,6 @@ def pet_level_price(level):
     return min(lv_block, 7)
 
 def floor_stat(hp, atk, df, spd):
-    # 표기 능력치 (내림정수)
     return (
         math.floor(hp * 4 + atk + df + spd),
         math.floor(hp * 0.1 + atk + df * 0.1 + spd * 0.05),
@@ -49,7 +48,6 @@ def floor_stat(hp, atk, df, spd):
     )
 
 def calc_s_init_stats(petinfo):
-    # S급 초기치 (floor(초기치계수 × 성장계수 / 100))
     initc, h, a, d, s = petinfo[2:]
     return (
         math.floor(initc * h / 100),
@@ -59,14 +57,12 @@ def calc_s_init_stats(petinfo):
     )
 
 def calc_s_growth(petinfo):
-    # S급 성장률(실수, 소수점2자리)
     _, h, a, d, s = petinfo[2:]
     return [
         (coef + 2.5) * S_GROWTH_B / 10000 for coef in [h, a, d, s]
     ]
 
 def calc_s_stats(petinfo, level):
-    # S급 능력치 (표기, 내림정수)
     hp, atk, df, spd = [float(x) for x in calc_s_init_stats(petinfo)]
     h_g, a_g, d_g, s_g = calc_s_growth(petinfo)
     if level > 1:
@@ -210,7 +206,7 @@ with col_stat:
         f"</div>"
     )
     st.markdown(stat_table, unsafe_allow_html=True)
-    # S급 초기치(별도 표기)
+    # S급 초기치/성장률
     s_init_hp, s_init_atk, s_init_df, s_init_spd = pet.s_init_stats()
     h_g, a_g, d_g, s_g = calc_s_growth(PET_DIC[pet.name])
     st.markdown(
