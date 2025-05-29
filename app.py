@@ -35,12 +35,11 @@ def pet_level_price(level):
     return min(lv_block, 7)
 
 def stat_display_formula(hp, atk, df, spd):
-    # 표기능력치 공식 (round, 실제 표기치)
-    disp_atk = round(hp*0.1 + atk + df*0.1 + spd*0.05)
-    disp_df  = round(hp*0.1 + atk*0.1 + df + spd*0.05)
-    disp_spd = round(spd)
-    disp_hp  = round(hp*4 + atk + df + spd)
-    return disp_atk, disp_df, disp_spd, disp_hp  # 공,방,순,체
+    disp_atk = math.floor(hp*0.1 + atk + df*0.1 + spd*0.05)
+    disp_df  = math.floor(hp*0.1 + atk*0.1 + df + spd*0.05)
+    disp_spd = math.floor(spd)
+    disp_hp  = math.floor(hp*4 + atk + df + spd)
+    return disp_atk, disp_df, disp_spd, disp_hp
 
 def s_grade_stat_array(petinfo):
     # S급 표기능력치(정수) 누적, 1~140까지 시뮬
