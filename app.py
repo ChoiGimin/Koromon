@@ -57,20 +57,14 @@ def calc_s_init_stats_real(petinfo):
     s_hp  = (hp  + 2.5) * initc / 100
     return s_hp, s_atk, s_df, s_spd
 
-# S급 성장률 (실수, 계수+2.5 보정, B=495)
-def calc_s_growth(petinfo):
-    _, atk, df, spd, hp = petinfo[2:]
-    return [
-        (atk + 2.5) * S_GROWTH_B / 10000,  # 공격
-        (spd + 2.5) * S_GROWTH_B / 10000,  # 순발
-        (df  + 2.5) * S_GROWTH_B / 10000,  # 방어
-        (hp  + 2.5) * S_GROWTH_B / 10000,  # 체력
-    ]
-
 # S급(또는 내 펫) N레벨 누적 실수 능력치 (hp,atk,df,spd)
 def calc_s_stats_real(petinfo, level):
     s_hp, s_atk, s_df, s_spd = calc_s_init_stats_real(petinfo)
-    g_atk, g_spd, g_df, g_hp = calc_s_growth(petinfo)
+    # S급 성장률(+2.5 보정)
+    g_atk = (petinfo[3] + 2.5) * S_GROWTH_B / 10000
+    g_spd = (petinfo[5] + 2.5) * S_GROWTH_B / 10000
+    g_df  = (petinfo[4] + 2.5) * S_GROWTH_B / 10000
+    g_hp  = (petinfo[6] + 2.5) * S_GROWTH_B / 10000
     if level > 1:
         s_atk += g_atk * (level-1)
         s_spd += g_spd * (level-1)
@@ -95,7 +89,6 @@ class Pet:
         self.level = 1
         self.growth_init()
     def growth_init(self):
-        # (hp, atk, df, spd)
         self.atk_growth = self.atk_coef + random.randint(-2, 2)
         self.df_growth  = self.df_coef  + random.randint(-2, 2)
         self.spd_growth = self.spd_coef + random.randint(-2, 2)
@@ -159,27 +152,20 @@ class Pet:
             ]
     def get_growth(self):
         lv = self.level
-        # 내 펫 현재 실수누적치(공,순,방,체)
-        cur_real = self.current_stats
-        # S급 1, lv레벨 실수누적치(공,순,방,체)
-        s_stats_1_real = calc_s_init_stats_real(PET_DIC[self.name])
-        s_stats_cur_real = calc_s_stats_real(PET_DIC[self.name], lv)
-        # S급 1, lv레벨 표기능력치(공,순,방,체)
-        s_stats_1_disp = stat_display_formula(*s_stats_1_real)
-        s_stats_cur_disp = stat_display_formula(*s_stats_cur_real)
-        # 내 펫 1, lv레벨 표기능력치(공,순,방,체)
-        cur_disp = self.get_stats()
-        cur_1_disp = stat_display_formula(*self.s_grade_stat_real(1))
+        cur_disp = self.get_stats()            # 내 펫 현재 표기능력치(공,순,방,체)
+        cur_1_disp = self.s_grade_stat_display(1)
+        s_disp_1 = self.s_grade_stat_display(1)
+        s_disp_lv = self.s_grade_stat_display(lv)
         if lv > 1:
-            # 내 성장률(공격,순발,방어)
+            # 내 표기 성장률
             atk_g = (cur_disp[0] - cur_1_disp[0]) / (lv - 1)
             spd_g = (cur_disp[1] - cur_1_disp[1]) / (lv - 1)
             df_g  = (cur_disp[2] - cur_1_disp[2]) / (lv - 1)
             total_g = atk_g + spd_g + df_g
-            # S급 성장률(공,순,방)
-            s_atk_g = (s_stats_cur_disp[0] - s_stats_1_disp[0]) / (lv - 1)
-            s_spd_g = (s_stats_cur_disp[1] - s_stats_1_disp[1]) / (lv - 1)
-            s_df_g  = (s_stats_cur_disp[2] - s_stats_1_disp[2]) / (lv - 1)
+            # S급 표기 성장률
+            s_atk_g = (s_disp_lv[0] - s_disp_1[0]) / (lv - 1)
+            s_spd_g = (s_disp_lv[1] - s_disp_1[1]) / (lv - 1)
+            s_df_g  = (s_disp_lv[2] - s_disp_1[2]) / (lv - 1)
             s_total_g = s_atk_g + s_spd_g + s_df_g
             return atk_g, spd_g, df_g, total_g, s_atk_g, s_spd_g, s_df_g, s_total_g
         else:
