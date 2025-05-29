@@ -2,6 +2,7 @@ import streamlit as st
 import random
 import math
 
+# 펫 정보: (번호, 이름, 초기치계수, 공격, 방어, 순발, 체력)
 PET_LIST = [
     (1, "놀놀", 25, 29, 18, 29, 19),
     (2, "골골", 21, 30, 13, 28, 20),
@@ -16,6 +17,8 @@ PET_DIC = {pet[1]: pet for pet in PET_LIST}
 PET_NAME_LIST = [pet[1] for pet in PET_LIST]
 FIRST_PET = "벨가"
 S_GROWTH_B = 495
+MAX_LEVEL = 140
+
 PET_IMAGE_NUM = {pet[1]: f"{pet[0]}.gif" for pet in PET_LIST}
 PET_BONUS = {"놀놀": 2.5, "골롯": 5.0}
 S_GROWTH_TABLE = [
@@ -27,7 +30,6 @@ S_GROWTH_TABLE = [
     ("B", -1.2, -0.8, 1.5),
     ("애정", float('-inf'), -1.2, 1)
 ]
-MAX_LEVEL = 140
 
 def pet_level_price(level):
     lv_block = (level - 1) // 20 + 1
@@ -64,25 +66,12 @@ def calc_s_stats_real(petinfo, level):
 def calc_s_stats_display(petinfo, level):
     return stat_display_formula(*calc_s_stats_real(petinfo, level))
 
-def get_fixed_s_growth(petinfo, max_level=140):
-    s1 = calc_s_stats_display(petinfo, 1)      # (공,방,순,체)
-    sN = calc_s_stats_display(petinfo, max_level)
-    return (
-        (sN[0] - s1[0]) / (max_level - 1),  # 공
-        (sN[1] - s1[1]) / (max_level - 1),  # 방
-        (sN[2] - s1[2]) / (max_level - 1),  # 순
-        (sN[3] - s1[3]) / (max_level - 1),  # 체
-    )
-
-def get_my_growth(cur_disp, s_disp_lv1, lv):
-    if lv > 1:
-        g_atk = (cur_disp[0] - s_disp_lv1[0]) / (lv - 1)
-        g_df  = (cur_disp[1] - s_disp_lv1[1]) / (lv - 1)
-        g_spd = (cur_disp[2] - s_disp_lv1[2]) / (lv - 1)
-        g_hp  = (cur_disp[3] - s_disp_lv1[3]) / (lv - 1)
-        return g_atk, g_df, g_spd, g_hp
-    else:
-        return None
+def get_growth_grade(total_g, s_total_g):
+    diff = total_g - s_total_g
+    for grade, min_diff, max_diff, mult in S_GROWTH_TABLE:
+        if min_diff < diff <= max_diff:
+            return grade, mult
+    return "애정", 1
 
 class Pet:
     def __init__(self, name):
@@ -107,22 +96,22 @@ class Pet:
             idx = random.randint(0, 3)
             bonus_points[idx] += 1
         self.base_stats = [base_stats[i] + bonus_points[i] for i in range(4)]
-        self.current_stats = [
+        self.current_stats_real = [
             self.base_stats[1] * self.initc / 100,  # 공
             self.base_stats[2] * self.initc / 100,  # 방
             self.base_stats[3] * self.initc / 100,  # 순
             self.base_stats[0] * self.initc / 100,  # 체
         ]
         self.last_display_stats = [0, 0, 0, 0]
-    def get_stats(self):
-        return stat_display_formula(*self.current_stats)  # (공,방,순,체)
+    def get_stats_display(self):
+        return tuple(math.floor(x) for x in self.current_stats_real)  # (공,방,순,체)
     def s_grade_stat_display(self, lv):
         return calc_s_stats_display(PET_DIC[self.name], lv)
     def levelup(self, up_count=1):
         for _ in range(up_count):
             if self.level >= MAX_LEVEL:
                 break
-            before = self.get_stats()
+            before = self.get_stats_display()
             base_growth = [
                 self.hp_growth, self.atk_growth, self.df_growth, self.spd_growth
             ]
@@ -132,20 +121,27 @@ class Pet:
                 a_bonus[idx] += 1
             b = S_GROWTH_B
             growth = [(base_growth[i] + a_bonus[i]) * b / 10000 for i in range(4)]
-            self.current_stats = [
-                self.current_stats[0] + growth[1],  # 공
-                self.current_stats[1] + growth[2],  # 방
-                self.current_stats[2] + growth[3],  # 순
-                self.current_stats[3] + growth[0],  # 체
+            self.current_stats_real = [
+                self.current_stats_real[0] + growth[1],  # 공
+                self.current_stats_real[1] + growth[2],  # 방
+                self.current_stats_real[2] + growth[3],  # 순
+                self.current_stats_real[3] + growth[0],  # 체
             ]
             self.level += 1
-            after = self.get_stats()
+            after = self.get_stats_display()
             self.last_display_stats = [
                 after[0] - before[0],
                 after[1] - before[1],
                 after[2] - before[2],
                 after[3] - before[3]
             ]
+    def get_growth(self, s_disp_lv1):
+        lv = self.level
+        my_disp = self.get_stats_display()
+        if lv > 1:
+            return tuple( (my_disp[i] - s_disp_lv1[i]) / (lv - 1) for i in range(4) )
+        else:
+            return (None, None, None, None)
 
 if "money" not in st.session_state:
     st.session_state.money = 0
@@ -171,20 +167,18 @@ st.markdown(
 )
 pet = st.session_state.pet
 
-# ---- S급 표기 성장률(고정, 공/방/순/체)
+# ---- S급 표기치(정수, floor) 성장률 (공/방/순/체)
 s_disp_lv1 = calc_s_stats_display(PET_DIC[pet.name], 1)
-s_disp_140 = calc_s_stats_display(PET_DIC[pet.name], 140)
-s_atk_g = (s_disp_140[0] - s_disp_lv1[0]) / 139
-s_df_g  = (s_disp_140[1] - s_disp_lv1[1]) / 139
-s_spd_g = (s_disp_140[2] - s_disp_lv1[2]) / 139
-s_hp_g  = (s_disp_140[3] - s_disp_lv1[3]) / 139
+s_disp_140 = calc_s_stats_display(PET_DIC[pet.name], MAX_LEVEL)
+s_growth = tuple((s_disp_140[i] - s_disp_lv1[i]) / (MAX_LEVEL-1) for i in range(4))
 
 # ---- 이미지 + 능력치 ----
 col_img, col_stat = st.columns([1, 2])
 with col_img:
     st.image(PET_IMAGE_NUM[pet.name], width=100)
 with col_stat:
-    cur_disp = pet.get_stats()
+    my_disp = pet.get_stats_display()
+    s_disp = pet.s_grade_stat_display(pet.level)
     def stat_color(val):
         if val == 0:
             return "cyan"
@@ -200,27 +194,31 @@ with col_stat:
         f"<th style='font-size:12px;'>순발력</th>"
         f"<th style='font-size:12px;'>체력</th></tr>"
         f"<tr style='height:27px;'>"
-        f"<td style='padding:2px'>{cur_disp[0]} <span style='color:{stat_color(cur_disp[0]-s_disp_lv1[0])}'>({cur_disp[0]-s_disp_lv1[0]:+d})</span></td>"
-        f"<td style='padding:2px'>{cur_disp[1]} <span style='color:{stat_color(cur_disp[1]-s_disp_lv1[1])}'>({cur_disp[1]-s_disp_lv1[1]:+d})</span></td>"
-        f"<td style='padding:2px'>{cur_disp[2]} <span style='color:{stat_color(cur_disp[2]-s_disp_lv1[2])}'>({cur_disp[2]-s_disp_lv1[2]:+d})</span></td>"
-        f"<td style='padding:2px'>{cur_disp[3]} <span style='color:{stat_color(cur_disp[3]-s_disp_lv1[3])}'>({cur_disp[3]-s_disp_lv1[3]:+d})</span></td>"
+        f"<td style='padding:2px'>{my_disp[0]} <span style='color:{stat_color(my_disp[0]-s_disp[0])}'>({my_disp[0]-s_disp[0]:+d})</span></td>"
+        f"<td style='padding:2px'>{my_disp[1]} <span style='color:{stat_color(my_disp[1]-s_disp[1])}'>({my_disp[1]-s_disp[1]:+d})</span></td>"
+        f"<td style='padding:2px'>{my_disp[2]} <span style='color:{stat_color(my_disp[2]-s_disp[2])}'>({my_disp[2]-s_disp[2]:+d})</span></td>"
+        f"<td style='padding:2px'>{my_disp[3]} <span style='color:{stat_color(my_disp[3]-s_disp[3])}'>({my_disp[3]-s_disp[3]:+d})</span></td>"
         f"</tr>"
-        f"<tr style='height:18px;'><td style='font-size:11.2px; color:#bbb; padding:1px'>{s_disp_lv1[0]}</td>"
-        f"<td style='font-size:11.2px; color:#bbb; padding:1px'>{s_disp_lv1[1]}</td>"
-        f"<td style='font-size:11.2px; color:#bbb; padding:1px'>{s_disp_lv1[2]}</td>"
-        f"<td style='font-size:11.2px; color:#bbb; padding:1px'>{s_disp_lv1[3]}</td></tr>"
+        f"<tr style='height:18px;'><td style='font-size:11.2px; color:#bbb; padding:1px'>{s_disp[0]}</td>"
+        f"<td style='font-size:11.2px; color:#bbb; padding:1px'>{s_disp[1]}</td>"
+        f"<td style='font-size:11.2px; color:#bbb; padding:1px'>{s_disp[2]}</td>"
+        f"<td style='font-size:11.2px; color:#bbb; padding:1px'>{s_disp[3]}</td></tr>"
         f"</table>"
         f"</div>"
     )
     st.markdown(stat_table, unsafe_allow_html=True)
 
 # ---- 버튼(가로 4개) ----
-growth = get_my_growth(cur_disp, s_disp_lv1, pet.level)
+growth = pet.get_growth(s_disp_lv1)
 if pet.level > 1 and growth:
     atk_g, df_g, spd_g, hp_g = growth
+    s_atk_g, s_df_g, s_spd_g, s_hp_g = s_growth
     total_g = atk_g + df_g + spd_g
     s_total_g = s_atk_g + s_df_g + s_spd_g
-    # 등급계산 등 생략...
+    growth_grade, mult = get_growth_grade(total_g, s_total_g)
+    base_money = pet_level_price(pet.level)
+    bonus = PET_BONUS.get(pet.name, 1)
+    sell_money = int(base_money * mult * bonus)
 else:
     sell_money = pet_level_price(pet.level)
 
@@ -235,7 +233,20 @@ with c2:
         pet.levelup(up_count=10)
         st.rerun()
 with c3:
-    if st.button(f"판매"):
+    if st.button(f"판매 (예상 {sell_money}G)"):
+        if pet.level > 1 and growth:
+            atk_g, df_g, spd_g, hp_g = growth
+            s_atk_g, s_df_g, s_spd_g, s_hp_g = s_growth
+            total_g = atk_g + df_g + spd_g
+            s_total_g = s_atk_g + s_df_g + s_spd_g
+            growth_grade, mult = get_growth_grade(total_g, s_total_g)
+            base_money = pet_level_price(pet.level)
+            bonus = PET_BONUS.get(pet.name, 1)
+            sell_money = int(base_money * mult * bonus)
+        else:
+            sell_money = pet_level_price(pet.level)
+        st.session_state.money += sell_money
+        alert_msg = f"{sell_money}골드를 획득합니다."
         st.session_state.pet = Pet(FIRST_PET)
         st.rerun()
 with c4:
@@ -249,18 +260,38 @@ with c4:
             st.rerun()
 
 # ---- 성장률 ----
-if growth:
-    st.markdown(
-        f"<div style='overflow-x:auto;'>"
-        f"<table style='width:100%; font-size:13.4px; line-height:1.08; table-layout:fixed;'>"
-        f"<tr><th>능력</th><th>내 성장률</th><th>S급 성장률</th></tr>"
+if pet.level > 1 and growth:
+    s_atk_g, s_df_g, s_spd_g, s_hp_g = s_growth
+    atk_g, df_g, spd_g, hp_g = growth
+    total_g = atk_g + df_g + spd_g
+    s_total_g = s_atk_g + s_df_g + s_spd_g
+    growth_table = (
+        "<div style='overflow-x:auto;'>"
+        "<table style='width:100%; font-size:13.4px; line-height:1.08; table-layout:fixed;'>"
+        "<tr><th>능력</th><th>내 성장률</th><th>S급 성장률</th></tr>"
         f"<tr><td>공격력</td><td>{atk_g:.2f}</td><td>{s_atk_g:.2f}</td></tr>"
         f"<tr><td>방어력</td><td>{df_g:.2f}</td><td>{s_df_g:.2f}</td></tr>"
         f"<tr><td>순발력</td><td>{spd_g:.2f}</td><td>{s_spd_g:.2f}</td></tr>"
         f"<tr><td>체력</td><td>{hp_g:.2f}</td><td>{s_hp_g:.2f}</td></tr>"
         f"<tr><td><b>합계</b></td><td><b>{total_g:.2f}</b></td><td><b>{s_total_g:.2f}</b></td></tr>"
-        f"</table></div>",
-        unsafe_allow_html=True
+        "</table></div>"
     )
+    st.markdown(growth_table, unsafe_allow_html=True)
 else:
     st.markdown("<div style='font-size:14px;text-align:center;'>성장률: - (2레벨 이상부터 표시)</div>", unsafe_allow_html=True)
+
+if pet.level > 1:
+    l_atk, l_df, l_spd, l_hp = pet.last_display_stats
+    st.markdown(
+        f"<div style='font-size:12.7px; text-align:center; margin-top:7px;'>"
+        f"<b>직전 레벨업 변화량:</b> "
+        f"<span style='color:{stat_color(l_atk)}'>공격력 {l_atk:+d}</span>  "
+        f"<span style='color:{stat_color(l_df)}'>방어력 {l_df:+d}</span>  "
+        f"<span style='color:{stat_color(l_spd)}'>순발력 {l_spd:+d}</span>  "
+        f"<span style='color:{stat_color(l_hp)}'>체력 {l_hp:+d}</span>"
+        f"</div>",
+        unsafe_allow_html=True
+    )
+
+if alert_msg:
+    st.success(alert_msg)
