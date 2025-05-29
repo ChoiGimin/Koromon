@@ -35,44 +35,37 @@ def pet_level_price(level):
     return min(lv_block, 7)
 
 def stat_display_formula(hp, atk, df, spd):
+    # 표기능력치 공식 (round, 실제 표기치)
     disp_atk = round(hp*0.1 + atk + df*0.1 + spd*0.05)
     disp_df  = round(hp*0.1 + atk*0.1 + df + spd*0.05)
     disp_spd = round(spd)
     disp_hp  = round(hp*4 + atk + df + spd)
     return disp_atk, disp_df, disp_spd, disp_hp  # 공,방,순,체
 
-def calc_s_init_stats_real_float(petinfo):
+def s_grade_stat_array(petinfo):
+    # S급 표기능력치(정수) 누적, 1~140까지 시뮬
     initc, atk, df, spd, hp = petinfo[2:]
-    return [
+    # S급 초기치 공식
+    base_stats = [
         (hp  + 2.5) * initc / 100,
         (atk + 2.5) * initc / 100,
         (df  + 2.5) * initc / 100,
         (spd + 2.5) * initc / 100,
     ]  # 체,공,방,순
-
-def calc_s_stats_real_float(petinfo, level):
-    stat = calc_s_init_stats_real_float(petinfo)
+    # S급 성장 공식
     grow = [
-        (petinfo[6] + 2.5) * S_GROWTH_B / 10000,  # hp
-        (petinfo[3] + 2.5) * S_GROWTH_B / 10000,  # atk
-        (petinfo[4] + 2.5) * S_GROWTH_B / 10000,  # df
-        (petinfo[5] + 2.5) * S_GROWTH_B / 10000,  # spd
-    ]
-    if level > 1:
-        for i in range(4):
-            stat[i] += grow[i] * (level-1)
-    return stat  # 체,공,방,순
-
-def calc_s_stats_display(petinfo, level):
-    hp, atk, df, spd = calc_s_stats_real_float(petinfo, level)
-    return stat_display_formula(hp, atk, df, spd)
-
-def get_growth_grade(total_g, s_total_g):
-    diff = total_g - s_total_g
-    for grade, min_diff, max_diff, mult in S_GROWTH_TABLE:
-        if min_diff < diff <= max_diff:
-            return grade, mult
-    return "애정", 1
+        (hp  + 2.5) * S_GROWTH_B / 10000,
+        (atk + 2.5) * S_GROWTH_B / 10000,
+        (df  + 2.5) * S_GROWTH_B / 10000,
+        (spd + 2.5) * S_GROWTH_B / 10000,
+    ]  # 체,공,방,순
+    s_arr = []
+    for lv in range(1, MAX_LEVEL+1):
+        stats = [base_stats[i] + grow[i]*(lv-1) for i in range(4)]
+        # 표기 공식
+        disp = stat_display_formula(stats[0], stats[1], stats[2], stats[3])  # 공,방,순,체
+        s_arr.append(disp)  # (공,방,순,체)
+    return s_arr
 
 class Pet:
     def __init__(self, name):
@@ -92,31 +85,29 @@ class Pet:
         self.df_growth  = self.df_coef  + random.randint(-2, 2)
         self.spd_growth = self.spd_coef + random.randint(-2, 2)
         self.hp_growth  = self.hp_coef  + random.randint(-2, 2)
-        base_stats = [self.hp_growth, self.atk_growth, self.df_growth, self.spd_growth]
+        base_stats = [
+            self.hp_growth, self.atk_growth, self.df_growth, self.spd_growth
+        ]
         bonus_points = [0, 0, 0, 0]
         for _ in range(10):
             idx = random.randint(0, 3)
             bonus_points[idx] += 1
         stats = [base_stats[i] + bonus_points[i] for i in range(4)]
-        # [hp, atk, df, spd]
         self.stats_real = [
             stats[0] * self.initc / 100,  # hp
             stats[1] * self.initc / 100,  # atk
             stats[2] * self.initc / 100,  # df
             stats[3] * self.initc / 100,  # spd
         ]
-        self.stats_real_float = list(self.stats_real)
+        self.stats_history = [stat_display_formula(self.stats_real[0], self.stats_real[1], self.stats_real[2], self.stats_real[3])]
         self.last_display_stats = [0, 0, 0, 0]
     def get_stats_display(self):
-        hp, atk, df, spd = self.stats_real
-        return stat_display_formula(hp, atk, df, spd)
-    def s_grade_stat_display(self, lv):
-        return calc_s_stats_display(PET_DIC[self.name], lv)
+        return self.stats_history[-1]
     def levelup(self, up_count=1):
         for _ in range(up_count):
             if self.level >= MAX_LEVEL:
                 break
-            before = self.get_stats_display()
+            before = self.stats_history[-1]
             base_growth = [
                 self.hp_growth, self.atk_growth, self.df_growth, self.spd_growth
             ]
@@ -133,20 +124,21 @@ class Pet:
             ]
             for i in range(4):
                 self.stats_real[i] += growth[i]
-                self.stats_real_float[i] += growth[i]
+            after = stat_display_formula(self.stats_real[0], self.stats_real[1], self.stats_real[2], self.stats_real[3])
+            self.stats_history.append(after)
             self.level += 1
-            after = self.get_stats_display()
             self.last_display_stats = [
                 after[0] - before[0],
                 after[1] - before[1],
                 after[2] - before[2],
                 after[3] - before[3]
             ]
-    def get_growth_float(self, s_float_lv1):
+    def get_growth(self, s_arr):
         lv = self.level
-        my_float = self.stats_real_float
+        my = self.stats_history[-1]
         if lv > 1:
-            return tuple( (my_float[i] - s_float_lv1[i]) / (lv - 1) for i in range(4) )
+            s_lv1 = s_arr[0]
+            return tuple((my[i] - s_lv1[i]) / (lv - 1) for i in range(4))
         else:
             return (None, None, None, None)
 
@@ -174,10 +166,11 @@ st.markdown(
 )
 pet = st.session_state.pet
 
-# S급 실수 성장률
-s_float_lv1 = calc_s_stats_real_float(PET_DIC[pet.name], 1)
-s_float_140 = calc_s_stats_real_float(PET_DIC[pet.name], MAX_LEVEL)
-s_growth_float = tuple((s_float_140[i] - s_float_lv1[i]) / (MAX_LEVEL-1) for i in range(4))
+# S급 표기능력치 배열(정수, 진짜 유저표와 완벽 일치)
+s_arr = s_grade_stat_array(PET_DIC[pet.name])
+s_lv1 = s_arr[0]
+s_140 = s_arr[MAX_LEVEL-1]
+s_growth = tuple((s_140[i] - s_lv1[i]) / (MAX_LEVEL-1) for i in range(4))
 
 # ---- 이미지 + 능력치 ----
 col_img, col_stat = st.columns([1, 2])
@@ -185,7 +178,7 @@ with col_img:
     st.image(PET_IMAGE_NUM[pet.name], width=100)
 with col_stat:
     my_disp = pet.get_stats_display()
-    s_disp = pet.s_grade_stat_display(pet.level)
+    s_disp = s_arr[pet.level-1]
     def stat_color(val):
         if val == 0:
             return "cyan"
@@ -216,10 +209,10 @@ with col_stat:
     st.markdown(stat_table, unsafe_allow_html=True)
 
 # ---- 버튼(가로 4개) ----
-growth_float = pet.get_growth_float(s_float_lv1)
-if pet.level > 1 and growth_float:
-    atk_g, df_g, spd_g, hp_g = growth_float
-    s_atk_g, s_df_g, s_spd_g, s_hp_g = s_growth_float
+growth = pet.get_growth(s_arr)
+if pet.level > 1 and growth:
+    atk_g, df_g, spd_g, hp_g = growth
+    s_atk_g, s_df_g, s_spd_g, s_hp_g = s_growth
     total_g = atk_g + df_g + spd_g
     s_total_g = s_atk_g + s_df_g + s_spd_g
     growth_grade, mult = get_growth_grade(total_g, s_total_g)
@@ -241,9 +234,9 @@ with c2:
         st.rerun()
 with c3:
     if st.button(f"판매 (예상 {sell_money}G)"):
-        if pet.level > 1 and growth_float:
-            atk_g, df_g, spd_g, hp_g = growth_float
-            s_atk_g, s_df_g, s_spd_g, s_hp_g = s_growth_float
+        if pet.level > 1 and growth:
+            atk_g, df_g, spd_g, hp_g = growth
+            s_atk_g, s_df_g, s_spd_g, s_hp_g = s_growth
             total_g = atk_g + df_g + spd_g
             s_total_g = s_atk_g + s_df_g + s_spd_g
             growth_grade, mult = get_growth_grade(total_g, s_total_g)
@@ -267,9 +260,9 @@ with c4:
             st.rerun()
 
 # ---- 성장률 ----
-if pet.level > 1 and growth_float:
-    s_atk_g, s_df_g, s_spd_g, s_hp_g = s_growth_float
-    atk_g, df_g, spd_g, hp_g = growth_float
+if pet.level > 1 and growth:
+    s_atk_g, s_df_g, s_spd_g, s_hp_g = s_growth
+    atk_g, df_g, spd_g, hp_g = growth
     total_g = atk_g + df_g + spd_g
     s_total_g = s_atk_g + s_df_g + s_spd_g
     growth_table = (
