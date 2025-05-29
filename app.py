@@ -293,4 +293,12 @@ if pet.level > 1:
         f"<span style='color:{stat_color(l_atk)}'>공격력 {l_atk:+d}</span>  "
         f"<span style='color:{stat_color(l_df)}'>방어력 {l_df:+d}</span>  "
         f"<span style='color:{stat_color(l_spd)}'>순발력 {l_spd:+d}</span>  "
-        f"<
+        f"<span style='color:{stat_color(l_hp)}'>체력 {l_hp:+d}</span>"
+        f"</div>",
+        unsafe_allow_html=True
+    )
+
+if pet.is_perfect_s_or_above():
+    st.toast("정석이 출현했습니다!!!")
+if alert_msg:
+    st.success(alert_msg)
