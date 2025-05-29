@@ -41,31 +41,30 @@ def stat_display_formula(hp, atk, df, spd):
     disp_hp  = round(hp*4 + atk + df + spd)
     return disp_atk, disp_df, disp_spd, disp_hp  # 공,방,순,체
 
-def calc_s_init_stats_real(petinfo):
+def calc_s_init_stats_real_float(petinfo):
     initc, atk, df, spd, hp = petinfo[2:]
-    s_atk = (atk + 2.5) * initc / 100
-    s_df  = (df  + 2.5) * initc / 100
-    s_spd = (spd + 2.5) * initc / 100
-    s_hp  = (hp  + 2.5) * initc / 100
-    return [s_hp, s_atk, s_df, s_spd]
+    return [
+        (hp  + 2.5) * initc / 100,
+        (atk + 2.5) * initc / 100,
+        (df  + 2.5) * initc / 100,
+        (spd + 2.5) * initc / 100,
+    ]  # 체,공,방,순
 
-def calc_s_stats_real(petinfo, level):
-    stat = calc_s_init_stats_real(petinfo)
+def calc_s_stats_real_float(petinfo, level):
+    stat = calc_s_init_stats_real_float(petinfo)
     grow = [
+        (petinfo[6] + 2.5) * S_GROWTH_B / 10000,  # hp
         (petinfo[3] + 2.5) * S_GROWTH_B / 10000,  # atk
         (petinfo[4] + 2.5) * S_GROWTH_B / 10000,  # df
         (petinfo[5] + 2.5) * S_GROWTH_B / 10000,  # spd
-        (petinfo[6] + 2.5) * S_GROWTH_B / 10000,  # hp
     ]
     if level > 1:
-        stat[1] += grow[0] * (level-1)  # atk
-        stat[2] += grow[1] * (level-1)  # df
-        stat[3] += grow[2] * (level-1)  # spd
-        stat[0] += grow[3] * (level-1)  # hp
-    return stat
+        for i in range(4):
+            stat[i] += grow[i] * (level-1)
+    return stat  # 체,공,방,순
 
 def calc_s_stats_display(petinfo, level):
-    hp, atk, df, spd = calc_s_stats_real(petinfo, level)
+    hp, atk, df, spd = calc_s_stats_real_float(petinfo, level)
     return stat_display_formula(hp, atk, df, spd)
 
 def get_growth_grade(total_g, s_total_g):
@@ -88,8 +87,7 @@ class Pet:
         self.level = 1
         self.growth_init()
     def growth_init(self):
-        self.stats_real = [0, 0, 0, 0]  # [hp, atk, df, spd]
-        # S급 초기치와 완전히 동일한 방식으로 생성 (랜덤성 반영)
+        # 랜덤 초기화
         self.atk_growth = self.atk_coef + random.randint(-2, 2)
         self.df_growth  = self.df_coef  + random.randint(-2, 2)
         self.spd_growth = self.spd_coef + random.randint(-2, 2)
@@ -107,6 +105,7 @@ class Pet:
             stats[2] * self.initc / 100,  # df
             stats[3] * self.initc / 100,  # spd
         ]
+        self.stats_real_float = list(self.stats_real)
         self.last_display_stats = [0, 0, 0, 0]
     def get_stats_display(self):
         hp, atk, df, spd = self.stats_real
@@ -134,6 +133,7 @@ class Pet:
             ]
             for i in range(4):
                 self.stats_real[i] += growth[i]
+                self.stats_real_float[i] += growth[i]
             self.level += 1
             after = self.get_stats_display()
             self.last_display_stats = [
@@ -142,11 +142,11 @@ class Pet:
                 after[2] - before[2],
                 after[3] - before[3]
             ]
-    def get_growth(self, s_disp_lv1):
+    def get_growth_float(self, s_float_lv1):
         lv = self.level
-        my_disp = self.get_stats_display()
+        my_float = self.stats_real_float
         if lv > 1:
-            return tuple((my_disp[i] - s_disp_lv1[i]) / (lv - 1) for i in range(4))
+            return tuple( (my_float[i] - s_float_lv1[i]) / (lv - 1) for i in range(4) )
         else:
             return (None, None, None, None)
 
@@ -174,10 +174,10 @@ st.markdown(
 )
 pet = st.session_state.pet
 
-# ---- S급 표기치(정수, round) 성장률 (공/방/순/체)
-s_disp_lv1 = calc_s_stats_display(PET_DIC[pet.name], 1)
-s_disp_140 = calc_s_stats_display(PET_DIC[pet.name], MAX_LEVEL)
-s_growth = tuple((s_disp_140[i] - s_disp_lv1[i]) / (MAX_LEVEL-1) for i in range(4))
+# S급 실수 성장률
+s_float_lv1 = calc_s_stats_real_float(PET_DIC[pet.name], 1)
+s_float_140 = calc_s_stats_real_float(PET_DIC[pet.name], MAX_LEVEL)
+s_growth_float = tuple((s_float_140[i] - s_float_lv1[i]) / (MAX_LEVEL-1) for i in range(4))
 
 # ---- 이미지 + 능력치 ----
 col_img, col_stat = st.columns([1, 2])
@@ -216,10 +216,10 @@ with col_stat:
     st.markdown(stat_table, unsafe_allow_html=True)
 
 # ---- 버튼(가로 4개) ----
-growth = pet.get_growth(s_disp_lv1)
-if pet.level > 1 and growth:
-    atk_g, df_g, spd_g, hp_g = growth
-    s_atk_g, s_df_g, s_spd_g, s_hp_g = s_growth
+growth_float = pet.get_growth_float(s_float_lv1)
+if pet.level > 1 and growth_float:
+    atk_g, df_g, spd_g, hp_g = growth_float
+    s_atk_g, s_df_g, s_spd_g, s_hp_g = s_growth_float
     total_g = atk_g + df_g + spd_g
     s_total_g = s_atk_g + s_df_g + s_spd_g
     growth_grade, mult = get_growth_grade(total_g, s_total_g)
@@ -241,9 +241,9 @@ with c2:
         st.rerun()
 with c3:
     if st.button(f"판매 (예상 {sell_money}G)"):
-        if pet.level > 1 and growth:
-            atk_g, df_g, spd_g, hp_g = growth
-            s_atk_g, s_df_g, s_spd_g, s_hp_g = s_growth
+        if pet.level > 1 and growth_float:
+            atk_g, df_g, spd_g, hp_g = growth_float
+            s_atk_g, s_df_g, s_spd_g, s_hp_g = s_growth_float
             total_g = atk_g + df_g + spd_g
             s_total_g = s_atk_g + s_df_g + s_spd_g
             growth_grade, mult = get_growth_grade(total_g, s_total_g)
@@ -267,9 +267,9 @@ with c4:
             st.rerun()
 
 # ---- 성장률 ----
-if pet.level > 1 and growth:
-    s_atk_g, s_df_g, s_spd_g, s_hp_g = s_growth
-    atk_g, df_g, spd_g, hp_g = growth
+if pet.level > 1 and growth_float:
+    s_atk_g, s_df_g, s_spd_g, s_hp_g = s_growth_float
+    atk_g, df_g, spd_g, hp_g = growth_float
     total_g = atk_g + df_g + spd_g
     s_total_g = s_atk_g + s_df_g + s_spd_g
     growth_table = (
