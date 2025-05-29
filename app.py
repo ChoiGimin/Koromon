@@ -75,6 +75,17 @@ def calc_s_stats(petinfo, level):
         s_spd += s_g * (level-1)
     return display_stats(s_hp, s_atk, s_df, s_spd)
 
+def calc_s_stats_real(petinfo, level):
+    # 실수 누적 기반 (floor 없이)
+    s_hp, s_atk, s_df, s_spd = calc_s_init_stats(petinfo)
+    h_g, a_g, d_g, s_g = calc_s_growth(petinfo)
+    if level > 1:
+        s_hp  += h_g * (level-1)
+        s_atk += a_g * (level-1)
+        s_df  += d_g * (level-1)
+        s_spd += s_g * (level-1)
+    return s_atk, s_spd, s_df, s_hp  # (공,순,방,체)
+
 class Pet:
     def __init__(self, name):
         petinfo = PET_DIC[name]
@@ -113,6 +124,8 @@ class Pet:
         return display_stats(*self.current_stats)
     def s_grade_stat_at_level(self, lv):
         return calc_s_stats(PET_DIC[self.name], lv)
+    def s_grade_stat_at_level_real(self, lv):
+        return calc_s_stats_real(PET_DIC[self.name], lv)
     def s_init_stats(self):
         return calc_s_stats(PET_DIC[self.name], 1)
     def levelup(self, up_count=1):
@@ -144,16 +157,20 @@ class Pet:
         lv = self.level
         s_stats_1 = self.s_grade_stat_at_level(1)
         s_stats_cur = self.s_grade_stat_at_level(lv)
+        s_stats_1_real = self.s_grade_stat_at_level_real(1)
+        s_stats_cur_real = self.s_grade_stat_at_level_real(lv)
         if lv > 1:
+            # 내 성장률(표기기준)
             atk_g = (cur[0] - s_stats_1[0]) / (lv - 1)
             spd_g = (cur[1] - s_stats_1[1]) / (lv - 1)
             df_g  = (cur[2] - s_stats_1[2]) / (lv - 1)
             hp_g  = (cur[3] - s_stats_1[3]) / (lv - 1)
             total_g = atk_g + df_g + spd_g
-            s_atk_g = (s_stats_cur[0] - s_stats_1[0]) / (lv - 1)
-            s_spd_g = (s_stats_cur[1] - s_stats_1[1]) / (lv - 1)
-            s_df_g  = (s_stats_cur[2] - s_stats_1[2]) / (lv - 1)
-            s_hp_g  = (s_stats_cur[3] - s_stats_1[3]) / (lv - 1)
+            # S급 성장률(실수누적, floor없이)
+            s_atk_g = (s_stats_cur_real[0] - s_stats_1_real[0]) / (lv - 1)
+            s_spd_g = (s_stats_cur_real[1] - s_stats_1_real[1]) / (lv - 1)
+            s_df_g  = (s_stats_cur_real[2] - s_stats_1_real[2]) / (lv - 1)
+            s_hp_g  = (s_stats_cur_real[3] - s_stats_1_real[3]) / (lv - 1)
             s_total_g = s_atk_g + s_df_g + s_spd_g
             return atk_g, spd_g, df_g, hp_g, total_g, s_atk_g, s_spd_g, s_df_g, s_hp_g, s_total_g
         else:
