@@ -1,6 +1,5 @@
 import streamlit as st
 import random
-import math
 
 # 펫 정보: (번호, 이름, 초기치계수, 공격, 방어, 순발, 체력)
 PET_LIST = [
@@ -36,10 +35,10 @@ def pet_level_price(level):
     return min(lv_block, 7)
 
 def stat_display_formula(hp, atk, df, spd):
-    disp_atk = math.floor(hp*0.1 + atk + df*0.1 + spd*0.05)
-    disp_df  = math.floor(hp*0.1 + atk*0.1 + df + spd*0.05)
-    disp_spd = math.floor(spd)
-    disp_hp  = math.floor(hp*4 + atk + df + spd)
+    disp_atk = round(hp*0.1 + atk + df*0.1 + spd*0.05)
+    disp_df  = round(hp*0.1 + atk*0.1 + df + spd*0.05)
+    disp_spd = round(spd)
+    disp_hp  = round(hp*4 + atk + df + spd)
     return disp_atk, disp_df, disp_spd, disp_hp  # 공,방,순,체
 
 def calc_s_init_stats_real(petinfo):
@@ -58,8 +57,8 @@ def calc_s_stats_real(petinfo, level):
     g_hp  = (petinfo[6] + 2.5) * S_GROWTH_B / 10000
     if level > 1:
         s_atk += g_atk * (level-1)
-        s_spd += g_spd * (level-1)
         s_df  += g_df  * (level-1)
+        s_spd += g_spd * (level-1)
         s_hp  += g_hp  * (level-1)
     return s_hp, s_atk, s_df, s_spd
 
@@ -104,7 +103,8 @@ class Pet:
         ]
         self.last_display_stats = [0, 0, 0, 0]
     def get_stats_display(self):
-        return tuple(math.floor(x) for x in self.current_stats_real)  # (공,방,순,체)
+        hp, atk, df, spd = self.current_stats_real[3], self.current_stats_real[0], self.current_stats_real[1], self.current_stats_real[2]
+        return stat_display_formula(hp, atk, df, spd)
     def s_grade_stat_display(self, lv):
         return calc_s_stats_display(PET_DIC[self.name], lv)
     def levelup(self, up_count=1):
@@ -167,7 +167,7 @@ st.markdown(
 )
 pet = st.session_state.pet
 
-# ---- S급 표기치(정수, floor) 성장률 (공/방/순/체)
+# ---- S급 표기치(정수, round) 성장률 (공/방/순/체)
 s_disp_lv1 = calc_s_stats_display(PET_DIC[pet.name], 1)
 s_disp_140 = calc_s_stats_display(PET_DIC[pet.name], MAX_LEVEL)
 s_growth = tuple((s_disp_140[i] - s_disp_lv1[i]) / (MAX_LEVEL-1) for i in range(4))
