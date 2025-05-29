@@ -47,23 +47,26 @@ def calc_s_init_stats_real(petinfo):
     s_df  = (df  + 2.5) * initc / 100
     s_spd = (spd + 2.5) * initc / 100
     s_hp  = (hp  + 2.5) * initc / 100
-    return s_hp, s_atk, s_df, s_spd
+    return [s_hp, s_atk, s_df, s_spd]
 
 def calc_s_stats_real(petinfo, level):
-    s_hp, s_atk, s_df, s_spd = calc_s_init_stats_real(petinfo)
-    g_atk = (petinfo[3] + 2.5) * S_GROWTH_B / 10000
-    g_spd = (petinfo[5] + 2.5) * S_GROWTH_B / 10000
-    g_df  = (petinfo[4] + 2.5) * S_GROWTH_B / 10000
-    g_hp  = (petinfo[6] + 2.5) * S_GROWTH_B / 10000
+    stat = calc_s_init_stats_real(petinfo)
+    grow = [
+        (petinfo[3] + 2.5) * S_GROWTH_B / 10000,  # atk
+        (petinfo[4] + 2.5) * S_GROWTH_B / 10000,  # df
+        (petinfo[5] + 2.5) * S_GROWTH_B / 10000,  # spd
+        (petinfo[6] + 2.5) * S_GROWTH_B / 10000,  # hp
+    ]
     if level > 1:
-        s_atk += g_atk * (level-1)
-        s_df  += g_df  * (level-1)
-        s_spd += g_spd * (level-1)
-        s_hp  += g_hp  * (level-1)
-    return s_hp, s_atk, s_df, s_spd
+        stat[1] += grow[0] * (level-1)  # atk
+        stat[2] += grow[1] * (level-1)  # df
+        stat[3] += grow[2] * (level-1)  # spd
+        stat[0] += grow[3] * (level-1)  # hp
+    return stat
 
 def calc_s_stats_display(petinfo, level):
-    return stat_display_formula(*calc_s_stats_real(petinfo, level))
+    hp, atk, df, spd = calc_s_stats_real(petinfo, level)
+    return stat_display_formula(hp, atk, df, spd)
 
 def get_growth_grade(total_g, s_total_g):
     diff = total_g - s_total_g
@@ -85,6 +88,8 @@ class Pet:
         self.level = 1
         self.growth_init()
     def growth_init(self):
+        self.stats_real = [0, 0, 0, 0]  # [hp, atk, df, spd]
+        # S급 초기치와 완전히 동일한 방식으로 생성 (랜덤성 반영)
         self.atk_growth = self.atk_coef + random.randint(-2, 2)
         self.df_growth  = self.df_coef  + random.randint(-2, 2)
         self.spd_growth = self.spd_coef + random.randint(-2, 2)
@@ -94,16 +99,17 @@ class Pet:
         for _ in range(10):
             idx = random.randint(0, 3)
             bonus_points[idx] += 1
-        self.base_stats = [base_stats[i] + bonus_points[i] for i in range(4)]
-        self.current_stats_real = [
-            self.base_stats[1] * self.initc / 100,  # 공
-            self.base_stats[2] * self.initc / 100,  # 방
-            self.base_stats[3] * self.initc / 100,  # 순
-            self.base_stats[0] * self.initc / 100,  # 체
+        stats = [base_stats[i] + bonus_points[i] for i in range(4)]
+        # [hp, atk, df, spd]
+        self.stats_real = [
+            stats[0] * self.initc / 100,  # hp
+            stats[1] * self.initc / 100,  # atk
+            stats[2] * self.initc / 100,  # df
+            stats[3] * self.initc / 100,  # spd
         ]
         self.last_display_stats = [0, 0, 0, 0]
     def get_stats_display(self):
-        hp, atk, df, spd = self.current_stats_real[3], self.current_stats_real[0], self.current_stats_real[1], self.current_stats_real[2]
+        hp, atk, df, spd = self.stats_real
         return stat_display_formula(hp, atk, df, spd)
     def s_grade_stat_display(self, lv):
         return calc_s_stats_display(PET_DIC[self.name], lv)
@@ -120,13 +126,14 @@ class Pet:
                 idx = random.randint(0, 3)
                 a_bonus[idx] += 1
             b = S_GROWTH_B
-            growth = [(base_growth[i] + a_bonus[i]) * b / 10000 for i in range(4)]
-            self.current_stats_real = [
-                self.current_stats_real[0] + growth[1],  # 공
-                self.current_stats_real[1] + growth[2],  # 방
-                self.current_stats_real[2] + growth[3],  # 순
-                self.current_stats_real[3] + growth[0],  # 체
+            growth = [
+                (base_growth[0] + a_bonus[0]) * b / 10000,  # hp
+                (base_growth[1] + a_bonus[1]) * b / 10000,  # atk
+                (base_growth[2] + a_bonus[2]) * b / 10000,  # df
+                (base_growth[3] + a_bonus[3]) * b / 10000,  # spd
             ]
+            for i in range(4):
+                self.stats_real[i] += growth[i]
             self.level += 1
             after = self.get_stats_display()
             self.last_display_stats = [
@@ -139,7 +146,7 @@ class Pet:
         lv = self.level
         my_disp = self.get_stats_display()
         if lv > 1:
-            return tuple( (my_disp[i] - s_disp_lv1[i]) / (lv - 1) for i in range(4) )
+            return tuple((my_disp[i] - s_disp_lv1[i]) / (lv - 1) for i in range(4))
         else:
             return (None, None, None, None)
 
@@ -269,11 +276,11 @@ if pet.level > 1 and growth:
         "<div style='overflow-x:auto;'>"
         "<table style='width:100%; font-size:13.4px; line-height:1.08; table-layout:fixed;'>"
         "<tr><th>능력</th><th>내 성장률</th><th>S급 성장률</th></tr>"
-        f"<tr><td>공격력</td><td>{atk_g:.2f}</td><td>{s_atk_g:.2f}</td></tr>"
-        f"<tr><td>방어력</td><td>{df_g:.2f}</td><td>{s_df_g:.2f}</td></tr>"
-        f"<tr><td>순발력</td><td>{spd_g:.2f}</td><td>{s_spd_g:.2f}</td></tr>"
-        f"<tr><td>체력</td><td>{hp_g:.2f}</td><td>{s_hp_g:.2f}</td></tr>"
-        f"<tr><td><b>합계</b></td><td><b>{total_g:.2f}</b></td><td><b>{s_total_g:.2f}</b></td></tr>"
+        f"<tr><td>공격력</td><td>{atk_g:.3f}</td><td>{s_atk_g:.3f}</td></tr>"
+        f"<tr><td>방어력</td><td>{df_g:.3f}</td><td>{s_df_g:.3f}</td></tr>"
+        f"<tr><td>순발력</td><td>{spd_g:.3f}</td><td>{s_spd_g:.3f}</td></tr>"
+        f"<tr><td>체력</td><td>{hp_g:.3f}</td><td>{s_hp_g:.3f}</td></tr>"
+        f"<tr><td><b>합계</b></td><td><b>{total_g:.3f}</b></td><td><b>{s_total_g:.3f}</b></td></tr>"
         "</table></div>"
     )
     st.markdown(growth_table, unsafe_allow_html=True)
