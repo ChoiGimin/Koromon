@@ -40,6 +40,7 @@ def pet_level_price(level):
     return min(lv_block, 7)
 
 def floor_stat(hp, atk, df, spd):
+    # 표기 능력치 (내림정수)
     return (
         math.floor(hp * 4 + atk + df + spd),
         math.floor(hp * 0.1 + atk + df * 0.1 + spd * 0.05),
@@ -48,6 +49,7 @@ def floor_stat(hp, atk, df, spd):
     )
 
 def calc_s_init_stats(petinfo):
+    # S급 초기치 (floor(초기치계수 × 성장계수 / 100))
     initc, h, a, d, s = petinfo[2:]
     return (
         math.floor(initc * h / 100),
@@ -57,20 +59,21 @@ def calc_s_init_stats(petinfo):
     )
 
 def calc_s_growth(petinfo):
+    # S급 성장률(실수, 소수점2자리)
     _, h, a, d, s = petinfo[2:]
     return [
         (coef + 2.5) * S_GROWTH_B / 10000 for coef in [h, a, d, s]
     ]
 
 def calc_s_stats(petinfo, level):
-    hp0, atk0, df0, spd0 = calc_s_init_stats(petinfo)
+    # S급 능력치 (표기, 내림정수)
+    hp, atk, df, spd = [float(x) for x in calc_s_init_stats(petinfo)]
     h_g, a_g, d_g, s_g = calc_s_growth(petinfo)
-    hp, atk, df, spd = hp0, atk0, df0, spd0
-    for _ in range(2, level+1):
-        hp += h_g
-        atk += a_g
-        df += d_g
-        spd += s_g
+    if level > 1:
+        hp += h_g * (level-1)
+        atk += a_g * (level-1)
+        df += d_g * (level-1)
+        spd += s_g * (level-1)
     return floor_stat(hp, atk, df, spd)
 
 class Pet:
@@ -209,9 +212,11 @@ with col_stat:
     st.markdown(stat_table, unsafe_allow_html=True)
     # S급 초기치(별도 표기)
     s_init_hp, s_init_atk, s_init_df, s_init_spd = pet.s_init_stats()
+    h_g, a_g, d_g, s_g = calc_s_growth(PET_DIC[pet.name])
     st.markdown(
         f"<div style='font-size:13px; color:#888;'>"
-        f"S급 초기치: 공격력 {s_init_atk} / 방어력 {s_init_df} / 순발력 {s_init_spd} / 체력 {s_init_hp}"
+        f"S급 초기치: 공격력 {s_init_atk} / 방어력 {s_init_df} / 순발력 {s_init_spd} / 체력 {s_init_hp}<br>"
+        f"S급 성장률: 공격력 {a_g:.2f} / 방어력 {d_g:.2f} / 순발력 {s_g:.2f} / 체력 {h_g:.2f}"
         f"</div>",
         unsafe_allow_html=True
     )
@@ -288,12 +293,4 @@ if pet.level > 1:
         f"<span style='color:{stat_color(l_atk)}'>공격력 {l_atk:+d}</span>  "
         f"<span style='color:{stat_color(l_df)}'>방어력 {l_df:+d}</span>  "
         f"<span style='color:{stat_color(l_spd)}'>순발력 {l_spd:+d}</span>  "
-        f"<span style='color:{stat_color(l_hp)}'>체력 {l_hp:+d}</span>"
-        f"</div>",
-        unsafe_allow_html=True
-    )
-
-if pet.is_perfect_s_or_above():
-    st.toast("정석이 출현했습니다!!!")
-if alert_msg:
-    st.success(alert_msg)
+        f"<
