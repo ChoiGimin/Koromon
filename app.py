@@ -1,5 +1,6 @@
 import streamlit as st
 import random
+import math
 
 # 펫 정보: (번호, 이름, 초기치계수, 공격, 방어, 순발, 체력)
 PET_LIST = [
@@ -35,14 +36,15 @@ def pet_level_price(level):
     return min(lv_block, 7)
 
 def stat_display_formula(hp, atk, df, spd):
+    # 표기능력치 공식: math.floor로 내림!
     disp_atk = math.floor(hp*0.1 + atk + df*0.1 + spd*0.05)
     disp_df  = math.floor(hp*0.1 + atk*0.1 + df + spd*0.05)
     disp_spd = math.floor(spd)
     disp_hp  = math.floor(hp*4 + atk + df + spd)
-    return disp_atk, disp_df, disp_spd, disp_hp
+    return disp_atk, disp_df, disp_spd, disp_hp  # 공,방,순,체
 
 def s_grade_stat_array(petinfo):
-    # S급 표기능력치(정수) 누적, 1~140까지 시뮬
+    # S급 표기능력치(정수, 내림) 누적, 1~140까지 시뮬
     initc, atk, df, spd, hp = petinfo[2:]
     # S급 초기치 공식
     base_stats = [
@@ -61,9 +63,8 @@ def s_grade_stat_array(petinfo):
     s_arr = []
     for lv in range(1, MAX_LEVEL+1):
         stats = [base_stats[i] + grow[i]*(lv-1) for i in range(4)]
-        # 표기 공식
         disp = stat_display_formula(stats[0], stats[1], stats[2], stats[3])  # 공,방,순,체
-        s_arr.append(disp)  # (공,방,순,체)
+        s_arr.append(disp)
     return s_arr
 
 class Pet:
@@ -79,7 +80,6 @@ class Pet:
         self.level = 1
         self.growth_init()
     def growth_init(self):
-        # 랜덤 초기화
         self.atk_growth = self.atk_coef + random.randint(-2, 2)
         self.df_growth  = self.df_coef  + random.randint(-2, 2)
         self.spd_growth = self.spd_coef + random.randint(-2, 2)
@@ -165,7 +165,7 @@ st.markdown(
 )
 pet = st.session_state.pet
 
-# S급 표기능력치 배열(정수, 진짜 유저표와 완벽 일치)
+# S급 표기능력치 배열(정수, 내림으로 누적)
 s_arr = s_grade_stat_array(PET_DIC[pet.name])
 s_lv1 = s_arr[0]
 s_140 = s_arr[MAX_LEVEL-1]
